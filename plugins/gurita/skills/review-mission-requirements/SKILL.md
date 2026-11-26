@@ -111,7 +111,7 @@ Now look for questions the documents don't yet capture — paying special attent
 
 Add only genuinely new questions — don't re-raise anything already present (you just inventoried them in step 1), and do not invent requirements: only annotate gaps relative to what is already written.
 
-Author each new finding as one `add` call, the question text as its heredoc body:
+Author each new finding as one `add` call, the question text as its heredoc body (the delimiter is quoted so nothing inside is expanded; pick a delimiter line the question text does not contain):
 
 ```
 python3 ${PLUGIN_ROOT}/tools/open_questions.py add <MISSION_DIR> "<Short Title>" <<'EOF'
@@ -122,7 +122,7 @@ EOF
 The tool appends the block after the existing ones and owns its shape — escaping, indentation, and the fold of the text to one line — so you write plain text, no XML and no entities. What you author is the two judgments the block carries:
 
 - **The question text.** Because a block does not sit next to the requirement it concerns, **each question must stand on its own** — brief, self-contained, and question-shaped, fully understandable without the surrounding context, never a design proposal. And **each question asks one choice**: a gap that holds two choices becomes two questions, one per choice. The one exception is choices in one gap that constrain each other, so that not every pairing of them is viable — author those as a single multi-axis question that asks both choices at once.
-- **The Short Title** (the block's `id`): a 2–5 word phrase that uniquely identifies the question within the document (e.g. "Getting-started section order", "Glossary term scope"). It is the stable handle the question is cited by in conversation and located by in the answering and recommendation skills, which match it **case-insensitively** — so keep every Short Title unique across all blocks even ignoring case. The tool refuses an id an existing block already carries (its `Error:` line names it); pick a distinct title and call again.
+- **The Short Title** (the block's `id`): a 2–5 word phrase that uniquely identifies the question within the document (e.g. "Getting-started section order", "Glossary term scope"). It is the stable handle the question is cited by in conversation and located by in the answering and recommendation skills, which match it **case-insensitively** — so keep every Short Title unique across all blocks even ignoring case. The tool refuses an id an existing block already carries (its `Error:` line names it); pick a distinct title and call again. It likewise refuses a title holding a `/`, a `"`, a `$`, a backtick, a `\`, a control character, or a `.` followed by whitespace, or one opening with a `-` or ending in a `.` (its `Error:` line names the one found); pick another title and call again.
 
 Do not restructure or rewrite existing content — this pass edits `requirements.md` only to delete the notes step 4 handles under `## Noted contradictions`, and the question document changes only through the `remove` calls of step 2 and the `add` calls here and in step 4.
 

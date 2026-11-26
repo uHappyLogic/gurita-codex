@@ -27,18 +27,30 @@ Subcommands:
       remove the TASKS_TODO.md section whose heading is TASK_TITLE, its heading, body, and
       "---" together, and nothing else. It reads nothing from standard input and renders
       the removed section nowhere
+  replace MISSION_DIR TASK_TITLE
+      rewrite the body of the TASKS_TODO.md section whose heading is TASK_TITLE with the
+      body read from standard input, keeping the section's heading, its position in the
+      list, and its "---"; the title cannot change, and no other section's title or body
+      changes. A body line reading as a "---" separator or a "## " heading is written verbatim
+      as body text by this call, as insert writes it
 
 A TASK_TITLE is matched against the "## " headings only by exact equality after
 whitespace-folding and case-folding; a partial title, a title two sections share, or one
-no section carries is refused. initialize and insert refuse an empty title or body, and a
-title whose folded form equals one TASKS_TODO.md already holds (for initialize, one the
-list itself repeats). No other rule of the task format is checked: titles and bodies are written
-as given.
+no section carries is refused. replace refuses an empty body; initialize and insert refuse
+an empty title or body, and a title whose folded form equals one TASKS_TODO.md already
+holds (for initialize, one the list itself repeats). They also refuse a new title holding
+a '"', a "$", a backtick, or a "\\", or opening with a "-" — the characters a double-quoted
+shell argument or a command line would read as something other than text — checked only
+where a title is created (the title argument of insert, every heading initialize reads), so
+the sections a list already holds keep their headings and remove, replace, and the anchors
+match them as before. No other rule of the task format is checked: titles and bodies are
+written as given.
 
-A free-text body (the list of initialize, the section body of insert) travels on standard
-input, never as an argument: the tool reads sys.stdin.buffer to end of file exactly once
-per call and decodes it as UTF-8 itself, and it refuses a terminal stdin so a call that
-forgot to pipe its body (a quoted heredoc, a redirected file) fails instead of blocking.
+A free-text body (the list of initialize, the section body of insert and replace) travels
+on standard input, never as an argument: the tool reads sys.stdin.buffer to end of file
+exactly once per call and decodes it as UTF-8 itself, and it refuses a terminal stdin so a
+call that forgot to pipe its body (a quoted heredoc, a redirected file) fails instead of
+blocking.
 
 Task file model, read whole on every write:
   - the preamble is everything before the first column-0 "## " line; it is never checked
@@ -282,6 +294,32 @@ def find_section(task_file, path, title):
     return matches[0]
 
 
+SHELL_QUOTED_CHARACTERS = ('"', "$", "`", "\\")
+
+
+def check_title_characters(title, subject):
+    """Refuse a new title holding a character a later position reads as syntax.
+
+    A task title is copied into the double-quoted shell argument of every fixed call that
+    names the task and is passed as a positional argument no call writes "--" ahead of, so
+    each refusal names the character it found; subject names the title, the title included.
+    """
+    for character in title:
+        if character in SHELL_QUOTED_CHARACTERS:
+            if character == "`":
+                shown = "a backtick"
+            elif character == '"':
+                shown = "a '\"'"
+            else:
+                shown = f'a "{character}"'
+            raise ToolError(
+                f"{subject} contains {shown}, "
+                "which a double-quoted shell argument does not carry as written"
+            )
+    if title.startswith("-"):
+        raise ToolError(f'{subject} opens with a "-", which a command line reads as an option')
+
+
 def check_new_title(task_file, path, title):
     """Refuse a title whose folded form a section of the file already carries."""
     wanted = title_key(title)
@@ -309,6 +347,7 @@ def cmd_initialize(args):
     for position, section in enumerate(sections, start=1):
         if not section.title:
             raise ToolError(f"section {position} of the task list on standard input has an empty title")
+        check_title_characters(section.title, f"the section titled \"{section.title}\" on standard input")
         if not section.body:
             raise ToolError(f"the section titled \"{section.title}\" on standard input has an empty body")
         key = title_key(section.title)
@@ -323,6 +362,7 @@ def cmd_insert(args):
     title = fold(args.task_title)
     if not title:
         raise ToolError("the task title is empty")
+    check_title_characters(title, f"the task title \"{title}\"")
     path = todo_path(args.mission_dir)
     task_file = load_todo(args.mission_dir)
     body = trimmed(lines_of(read_body("the task body")))
@@ -336,6 +376,18 @@ def cmd_insert(args):
     else:
         position = find_section(task_file, path, args.after) + 1
     task_file.sections.insert(position, Section(title, body))
+    save_task_file(path, task_file)
+    return 0
+
+
+def cmd_replace(args):
+    path = todo_path(args.mission_dir)
+    task_file = load_todo(args.mission_dir)
+    position = find_section(task_file, path, args.task_title)
+    body = trimmed(lines_of(read_body("the task body")))
+    if not body:
+        raise ToolError("the task body on standard input is empty")
+    task_file.sections[position].body = body
     save_task_file(path, task_file)
     return 0
 
@@ -375,14 +427,17 @@ def build_parser():
         "replace TASKS_TODO.md with its heading and the whole ordered list of sections read "
         "from standard input in the file's own form (a \"## <Task Title>\" heading, the body, "
         "a \"---\" line); every section is validated first, so the list lands whole or the file "
-        "is left unchanged",
+        "is left unchanged; a heading holding a '\"', a \"$\", a backtick, or a \"\\\", or "
+        "opening with a \"-\", is refused",
     )
 
     insert_parser = add_subcommand(
         "insert",
         cmd_insert,
         "put one new section into TASKS_TODO.md, its heading the given title and its body read "
-        "from standard input, at the one position the required flag names",
+        "from standard input, at the one position the required flag names; a TASK_TITLE "
+        "whose folded form holds a '\"', a \"$\", a backtick, or a \"\\\", or opens with a "
+        "\"-\", is refused",
     )
     insert_parser.add_argument(
         "task_title",
@@ -416,6 +471,19 @@ def build_parser():
         "task_title",
         metavar="TASK_TITLE",
         help="the title of the section to remove, compared whitespace-folded and case-folded against the TASKS_TODO.md titles",
+    )
+
+    replace_parser = add_subcommand(
+        "replace",
+        cmd_replace,
+        "rewrite the body of the TASKS_TODO.md section with the given title with the body read "
+        "from standard input, keeping its heading, its position, and its \"---\"; the title "
+        "cannot change, and an empty body is refused",
+    )
+    replace_parser.add_argument(
+        "task_title",
+        metavar="TASK_TITLE",
+        help="the title of the section whose body to rewrite, compared whitespace-folded and case-folded against the TASKS_TODO.md titles",
     )
     return parser
 

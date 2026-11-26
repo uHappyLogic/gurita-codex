@@ -44,8 +44,8 @@ print no line of step 4.
 ### 3. Remove and commit the completion in one shell call
 
 Run the procedure's step 5 removal as this one fixed shell call, written out in full exactly
-as shown, with only `<MISSION_DIR>`, `<Task Title>`, the bar's bullets, and the paths
-replaced:
+as shown, with only `<MISSION_DIR>`, `<Task Title>`, the bar's bullets, and the recorded
+paths replaced:
 
 ```
 { bar="$(cat)"; } <<'EOF' &&
@@ -57,7 +57,11 @@ if ! printf '%s\n' "$bar" | grep -q '[^[:space:]]'; then
   false
 fi &&
 python3 ${PLUGIN_ROOT}/tools/task_list.py remove <MISSION_DIR> "<Task Title>" &&
-out="$(python3 ${PLUGIN_ROOT}/tools/commit.py --subject "Task-completion: <Task Title>" --body "$bar" -- <recorded path 1> <recorded path 2> <MISSION_DIR>/TASKS_TODO.md)" &&
+{ out="$(python3 ${PLUGIN_ROOT}/tools/commit.py --subject "Task-completion: <Task Title>" --body "$bar" --path-file -)"; } <<'EOF' &&
+<recorded path 1>
+<recorded path 2>
+<MISSION_DIR>/TASKS_TODO.md
+EOF
 if [ -z "$out" ]; then
   echo 'completion commit landed'
 fi
@@ -67,23 +71,28 @@ The call opens by capturing the acceptance bar, in the form the procedure's step
 from the quoted heredoc into `bar`: the heredoc feeds the `{ … }` group rather than sitting
 inside the `$( )`, the form every shell parses alike whatever apostrophes or parentheses the
 bar holds, and the delimiter is quoted so nothing inside is expanded (pick a delimiter line
-the bar does not contain). The test that follows refuses a bar holding no non-blank line: it
-prints `acceptance bar empty` and ends the call before anything is removed or committed. The
-removal command is exactly the one the procedure's step 5 shows. After its `&&` the call runs
-the one command of the shared commit procedure at `${PLUGIN_ROOT}/shared/commit-procedure.md`,
-the plugin's commit tool, with `Task-completion: <Task Title>`, the full `##` heading the
-procedure located, as its subject, the bar as its body, and this skill's own change set as
-its paths: the exact paths the completion procedure recorded as it created or edited files
-while carrying out the task, plus the mission's task list `<MISSION_DIR>/TASKS_TODO.md`
-(the task left it), every path written out on the command line after `--` as its own argument
-and none held in a shell variable. The tool runs the dirty-own-path guard over those paths,
-stages exactly them (never `git add -A`), and commits them with them as the commit's
-pathspec, so nothing else the index holds — a change another run has staged included — rides
-in the completion's commit, and it repeats a git write another process's lock refused before
-giving up. Its stdout is captured in `out`: empty when the commit landed, its fixed no-op line
-when none of the paths changed, so `completion commit landed` is printed only when `out` is
-empty and a no-op commits and prints nothing. `bar` and `out` are each one quoted value set
-and used within this one call, never a tool command or a path list.
+the bar does not contain, and one the paths do not contain for the path heredoc below). The
+test that follows refuses a bar holding no non-blank line: it prints `acceptance bar empty`
+and ends the call before anything is removed or committed. The removal command is exactly
+the one the procedure's step 5 shows. After its `&&` the call runs the plugin's commit tool,
+the tool of the shared commit procedure at `${PLUGIN_ROOT}/shared/commit-procedure.md`,
+with `Task-completion: <Task Title>`, the full `##` heading the procedure located, as its
+subject, the bar as its body, and this skill's own change set as its paths: the exact paths
+the completion procedure recorded as it changed files while carrying out the task, plus the
+mission's task list `<MISSION_DIR>/TASKS_TODO.md` (the task left it). The paths reach the
+tool as `--path-file -`, fed by the second quoted heredoc, which the same group-fed form
+passes to the command substitution: one path per line, every path written out in full on a
+line of its own, exactly as recorded and with no quoting or escaping, since the tool reads
+each line whole as one path, and none held in a shell variable, so no path is ever on the
+command line and a path holding a space or shell syntax reaches the tool as written. The
+tool runs the dirty-own-path guard over those paths, stages exactly them (never
+`git add -A`), and commits them with them as the commit's pathspec, so nothing else the
+index holds — a change another run has staged included — rides in the completion's commit,
+and it repeats a git write another process's lock refused before giving up. Its stdout is
+captured in `out`: empty when the commit landed, its fixed no-op line when none of the paths
+changed, so `completion commit landed` is printed only when `out` is empty and a no-op
+commits and prints nothing. `bar` and `out` are each one quoted value set and used within
+this one call, never a tool command or a path list.
 
 What the call prints is the whole outcome: `completion commit landed` when the commit landed;
 nothing when the commit tool found none of the paths changed; otherwise `acceptance bar

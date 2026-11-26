@@ -93,7 +93,9 @@ and any constraint it imposes. Write it as **clean prose with no citation marker
 document records the decision itself, not where it came from. Match the live document's
 section names, and match each entry's shape to the subsection it lands in: a prose paragraph
 where the mission's `## Decisions` holds one subsection per decision, a
-`- **Lead.** text` bullet where it holds topical subsections of bullets.
+`- **Lead.** text` bullet where it holds topical subsections of bullets. A folded decision
+or a rewritten entry holds no line opening at column 0 with `## ` or `### `: a subsection's
+own `###` heading is the only heading line a fold writes.
 
 Two cases edit an existing entry in place, under its own heading and in its own shape:
 

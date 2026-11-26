@@ -178,7 +178,10 @@ if [ -n "$(git status --porcelain -- <MISSION_DIR>/open_questions.xml <MISSION_D
   false
 fi &&
 if pick="$(python3 ${PLUGIN_ROOT}/tools/open_questions.py lift <MISSION_DIR> "<Short Title>" 2>/dev/null)"; then
-  python3 ${PLUGIN_ROOT}/tools/requirements.py fold <MISSION_DIR> --section "<Heading>" <<'EOF' &&
+  { heading="$(cat)"; } <<'EOF' &&
+<Heading>
+EOF
+  python3 ${PLUGIN_ROOT}/tools/requirements.py fold <MISSION_DIR> --section "$heading" <<'EOF' &&
 <the decision>
 EOF
   python3 ${PLUGIN_ROOT}/tools/open_questions.py remove <MISSION_DIR> "<Short Title>" --option "<Option>" &&
@@ -197,12 +200,15 @@ it — is written once per question composed in **a**, every one in the one call
 there are, with no cap and no splitting, in step 1's printed order and never reordered: `walk`
 places each block after the blocks its `<depends-on>` tags name, so every commit that lands
 records a pick whose assumed siblings are already recorded. Each copy carries that question's
-Short Title in its four places, its heading after `--section`, its decision between the
-`<<'EOF'` line and the `EOF` line (the delimiter is quoted so nothing inside is expanded; pick a
-delimiter line the decision does not contain), and its option after `--option`. Every Short
-Title, heading, and option is written inside double quotes, with any `"`, `$`, `` ` ``, or `\`
-it holds escaped by a backslash. The lines before the first section and the lines from
-`echo 'completeness walk'` to the end are written once.
+Short Title in its four places, its heading as the one line of the first heredoc, between the
+`{ heading="$(cat)"; } <<'EOF'` line and its `EOF` line, its decision between the fold's
+`<<'EOF'` line and the `EOF` line after it (each delimiter is quoted so nothing inside is
+expanded; pick, for each heredoc, a delimiter line the heading or the decision does not
+contain), and its option after `--option`. The heading is written exactly as it stands, nothing
+in it escaped, and reaches `--section` only as the captured `"$heading"`. Every Short Title and
+option is written inside double quotes, with any `"`, `$`, `` ` ``, or `\` it holds escaped by a
+backslash. The lines before the first section and the lines from `echo 'completeness walk'` to
+the end are written once.
 
 A conflict question's copy is the **conflict section** instead — again the lines from
 `if pick=` through the column-0 `fi &&` that closes it, identical to the question section but
@@ -211,7 +217,10 @@ body:
 
 ```
 if pick="$(python3 ${PLUGIN_ROOT}/tools/open_questions.py lift <MISSION_DIR> "<Short Title>" 2>/dev/null)"; then
-  python3 ${PLUGIN_ROOT}/tools/requirements.py replace <MISSION_DIR> --section "<Heading>" <<'EOF' &&
+  { heading="$(cat)"; } <<'EOF' &&
+<Heading>
+EOF
+  python3 ${PLUGIN_ROOT}/tools/requirements.py replace <MISSION_DIR> --section "$heading" <<'EOF' &&
 <the new body>
 EOF
   python3 ${PLUGIN_ROOT}/tools/open_questions.py remove <MISSION_DIR> "<Short Title>" --option "<Option>" &&
@@ -223,8 +232,9 @@ EOF
 fi &&
 ```
 
-It is filled exactly as the question section is, with the losing entry's heading after
-`--section` and the new body between the `<<'EOF'` line and the `EOF` line, and it stands at
+It is filled exactly as the question section is, with the losing entry's heading as the one
+line of the first heredoc and the new body between the `replace` call's `<<'EOF'` line and the
+`EOF` line after it, and it stands at
 the conflict question's place in step 1's printed order like any other section. Every section
 thus makes the same tool calls — one `lift`, one fold-tool call, one `remove`, one commit-tool
 call — and a conflict section holds exactly one `replace` and no `fold`.
@@ -241,8 +251,9 @@ because its `<depends-on>` assumed an option other than the one recorded — the
 nothing and prints nothing: that is the **silent skip**, kept in no record and confirmed by no
 read, the stripped block being the recommendation pass's to re-pick. When it succeeds, its one
 line, "`<option>` — `<rationale>`", is held in `pick` as the commit body, since once the answer
-is recorded the block is gone. Then the fold tool splices the decision verbatim at the end of
-the `<Heading>` subsection of `## Decisions` — in a conflict section its `replace` instead
+is recorded the block is gone. The heading's heredoc is then captured once into `heading`, so
+the heading reaches `--section` byte for byte whatever backticks, `$`, or quotes it holds, and
+the fold tool splices the decision verbatim at the end of the `<Heading>` subsection of `## Decisions` — in a conflict section its `replace` instead
 rewrites everything below that existing subsection's heading line with the new body, the
 heading line and every byte outside the subsection kept — so the recorded decision always
 lands before the block is removed; `remove` deletes the block with `--option` naming the
@@ -257,9 +268,9 @@ in the answer's commit, and it repeats a git write another process's lock refuse
 giving up. Its stdout is captured in `out`: empty when the commit landed, its fixed no-op line
 when neither file changed, so `answer commit landed` is printed only when `out` is empty and a
 no-op commits and prints nothing. One commit per answer is what lets a single answer be
-reverted and re-answered on its own. `pick` and `out` are each one quoted value per section,
-set and used within it, never a tool command or a path list; no shell variable carries
-anything from one section to the next.
+reverted and re-answered on its own. `heading`, `pick`, and `out` are each one quoted value per
+section, set and used within it, never a tool command or a path list; no shell variable
+carries anything from one section to the next.
 
 A **stop**: when the fold, the `remove`, or the commit fails after a successful lift — the fold
 tool refusing (a `replace` whose heading no `###` subsection of `## Decisions` carries

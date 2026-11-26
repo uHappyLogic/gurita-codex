@@ -3,7 +3,7 @@ its record of finished work, read from its git log.
 
 Usage: python3 <plugin root>/tools/missions.py live [MISSION_PATH]
        python3 <plugin root>/tools/missions.py gate MISSION_PATH
-       python3 <plugin root>/tools/missions.py tasks PATH [--with-body]
+       python3 <plugin root>/tools/missions.py tasks PATH [--with-body [--bodies N]]
        python3 <plugin root>/tools/missions.py missions (PATH | --mission MISSION_PATH) [--last N]
        python3 <plugin root>/tools/missions.py summary MISSION_PATH
        python3 <plugin root>/tools/missions.py record PATH
@@ -76,7 +76,7 @@ Subcommands:
       "git fetch --unshallow". A MISSION_PATH naming no mission_ directory (one whose last
       component does not open with mission_, an absolute one, or one leading out of the
       workspace) is refused.
-  tasks PATH [--with-body]
+  tasks PATH [--with-body [--bodies N]]
       print one line for every commit that changed PATH and whose subject opens with
       "Task-completion:", the completion of one task. Each line is four fields separated
       by single tab characters: the commit's abbreviated hash as git's %h prints it, its
@@ -100,6 +100,11 @@ Subcommands:
       trimmed and a trailing trailer paragraph dropped, nothing else changed; a commit with
       no body is its task line alone. Every task line stays at column 0, so the next column-0
       line is the next task.
+      With --bodies N beside --with-body, N a whole number, every task line is printed and
+      only the N newest tasks, the first N lines in the order they are printed in, have their
+      bodies beneath them; every older task is its task line alone, the form a commit with no
+      body takes, so one reader parses both. Without it every body is printed; --bodies
+      without --with-body is refused.
       When no task commit changed PATH the tool prints nothing and exits 0 if PATH is
       present in the working tree or was changed by any commit at all, and refuses
       otherwise, a path that is neither being most likely mistyped.
@@ -318,7 +323,10 @@ task commit changed PATH, nothing is printed if PATH is present in the working
 tree or was changed by any commit, and one Error line is printed otherwise.
 With --with-body, each body has its outer blank lines trimmed and drops a
 trailing paragraph whose every line is a trailer, Token: value (Co-Authored-By:,
-for instance)."""
+for instance). With --bodies N beside --with-body every task line is printed
+and only the N newest tasks, the first N lines, have their bodies beneath them,
+every older task being its line alone, as a commit with no body is; without it,
+every body is printed. --bodies without --with-body is refused."""
 
 TASKS_LIMITS = """\
 Limits:
@@ -1095,6 +1103,8 @@ def cmd_gate(args):
 
 
 def cmd_tasks(args):
+    if args.bodies is not None and not args.with_body:
+        args.usage_error("argument --bodies: not allowed without --with-body")
     path = args.path
     if not path:
         raise ToolError("the PATH given is empty")
@@ -1103,9 +1113,9 @@ def cmd_tasks(args):
         require_existing(path)
         return 0
     lines = []
-    for commit in commits:
+    for index, commit in enumerate(commits):
         lines.append(task_line(commit))
-        if args.with_body:
+        if args.with_body and (args.bodies is None or index < args.bodies):
             lines.extend(BODY_INDENT + line + "\n" for line in body_lines(commit.body))
     sys.stdout.write("".join(lines))
     return 0
@@ -1132,7 +1142,7 @@ def cmd_missions(args):
 
 
 def whole_number(text):
-    """A --last value: a whole number, zero included; anything else is argparse's refusal."""
+    """A --last or --bodies value: a whole number, zero included; anything else is argparse's refusal."""
     if not re.fullmatch(r"[0-9]+", text):
         raise argparse.ArgumentTypeError(f"invalid whole number: {text!r}")
     return int(text)
@@ -1279,7 +1289,16 @@ def build_parser():
             "commit with no body"
         ),
     )
-    tasks_parser.set_defaults(func=cmd_tasks)
+    tasks_parser.add_argument(
+        "--bodies",
+        metavar="N",
+        type=whole_number,
+        help=(
+            "with --with-body, print every task line and the bodies of only the N newest tasks, "
+            "each older task its line alone"
+        ),
+    )
+    tasks_parser.set_defaults(func=cmd_tasks, usage_error=tasks_parser.error)
 
     missions_parser = subcommands.add_parser(
         "missions",

@@ -24,13 +24,27 @@ Facilitates a structured conversation to sharpen a vague or incomplete mission g
 
 ### 1. Read project context
 
-In the same turn, as two independent tool calls, read `AGENTS.md` for the project's domain context and overview, and run, from the workspace root, the plugin's missions tool for the project's whole record — what past missions built and which missions are live:
+In the same turn, as two independent tool calls, read `AGENTS.md` for the project's domain context and overview, and run, from the workspace root, the plugin's missions tool for the overview of the project's record — every mission recorded, live or finished:
 
 ```
-python3 ${PLUGIN_ROOT}/tools/missions.py record .
+python3 ${PLUGIN_ROOT}/tools/missions.py missions .
 ```
 
-It prints one tab-separated line per mission at column 0 (`live` or `finished`, the finish date or `-` for a live one, the mission's path, and its title; the live ones first, then the finished ones newest first), with that mission's summary bullets, or a live one's goal, and its completed tasks indented beneath it, and prints nothing when the project has no mission yet, which is no failure. Run it once on every invocation, before the conversation opens, whatever the goal names. If the call fails, tell the user in prose that the record read failed, quoting its one `Error: <reason>` line from stderr verbatim, and carry on from the context file, printing no fixed line. Together the two reads ground all questions in the real project state.
+It prints one tab-separated line per mission (`live` or `finished`, the finish date or `-` for a live one, the mission's path, and its title; the live ones first, then the finished ones newest first), and prints nothing when the project has no mission yet, which is no failure. Run it once on every invocation, before the conversation opens, whatever the goal names. Together the two reads ground all questions in the real project state.
+
+Then read deeper at your own discretion, wherever the overview bears on the goal, through the same tool from the workspace root, writing out the full command on every call, never through a variable, alias, or function of your own defined to stand for the command or any part of it. For a mission whose line bears on the goal, read its summary — a finished one's finish date and summary bullets, a live one's goal — with `<path>` the mission path exactly as the overview printed it:
+
+```
+python3 ${PLUGIN_ROOT}/tools/missions.py summary <path>
+```
+
+Once the placement is in view, read the record of the directory the goal concerns — each mission that changed it or whose scope overlaps it, with that mission's summary and its completed tasks that changed it — with `<path>` that directory's path relative to the workspace root, `.` for the root:
+
+```
+python3 ${PLUGIN_ROOT}/tools/missions.py record <path>
+```
+
+If any of these calls fails, tell the user in prose that the record read failed, quoting its one `Error: <reason>` line from stderr verbatim, and carry on from the context file and the other reads, printing no fixed line.
 
 ### 2. Analyze the goal
 

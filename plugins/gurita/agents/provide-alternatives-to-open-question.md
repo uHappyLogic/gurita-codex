@@ -42,35 +42,35 @@ mission's `requirements.md`, its sibling questions, and the actual project artif
 question turns on. Prefer the live project over reasoning from memory. All of this reading is
 read-only; enumerating alternatives changes nothing.
 
-You reach `open_questions.xml` through **exactly two** calls to the plugin's open-question tool,
-`python3 ${PLUGIN_ROOT}/tools/open_questions.py <subcommand> <MISSION_DIR> …`, written out
-in full on every call, never through a variable, alias, or function of your own defined to
-stand for the command or any part of it, and never open or search the file yourself:
+You reach `open_questions.xml` through **exactly one** shell call, which runs the plugin's
+open-question tool twice, `locate` on your own Short Title and on no other, then
+`list --with-question`, with one quoted `printf` line between them as the separator, and you
+never open or search the file yourself. Run it written out in full exactly as shown, with only
+`<MISSION_DIR>` and the Short Title replaced: never split it into two calls, never write a
+separator of your own in place of the `printf` line, and never stand for the tool command or
+any part of it through a variable, alias, or function of your own:
 
-1. **Your block.** Run `locate` on your own Short Title, and on no other:
+```
+python3 ${PLUGIN_ROOT}/tools/open_questions.py locate <MISSION_DIR> "<Short Title>" &&
+printf '%s\n' '--- sibling scope ---' &&
+python3 ${PLUGIN_ROOT}/tools/open_questions.py list --with-question <MISSION_DIR>
+```
 
-   ```
-   python3 ${PLUGIN_ROOT}/tools/open_questions.py locate <MISSION_DIR> "<Short Title>"
-   ```
+Its print has two parts, divided by the `--- sibling scope ---` line:
 
-   It prints the question's `<open-question>` block verbatim; that block is your primary
-   source. If it stops on an `Error:` line instead, the prompt named no question the document
-   holds — end your session as step 4 describes, with that line as the reason.
+1. **Your block.** Above the separator, the question's `<open-question>` block verbatim; that
+   block is your primary source. If `locate` stops on an `Error:` line instead, nothing else
+   prints and the call fails: the prompt named no question the document holds — end your
+   session as step 4 describes, with that line as the reason.
 
-2. **Sibling scope.** Run `list --with-question`:
+2. **Sibling scope.** Below the separator, every block as its id, a single tab, then its
+   question text, one per line in document order. That print is your **only** source of
+   sibling scope: the siblings mark where this question ends and another begins, and their id
+   and question text is all of them you see — you never run `locate` on a sibling, so no
+   sibling's embedded alternatives or pick reaches you and none is presumed settled.
 
-   ```
-   python3 ${PLUGIN_ROOT}/tools/open_questions.py list --with-question <MISSION_DIR>
-   ```
-
-   It prints every block as its id, a single tab, then its question text, one per line in
-   document order. That print is your **only** source of sibling scope: the siblings mark where
-   this question ends and another begins, and their id and question text is all of them you
-   see — you never run `locate` on a sibling, so no sibling's embedded alternatives or pick
-   reaches you and none is presumed settled.
-
-Read `<MISSION_DIR>/requirements.md` whole with the file-reading tool beside those two
-prints. All of it feeds your reasoning only.
+Read `<MISSION_DIR>/requirements.md` whole with the file-reading tool beside that print. All
+of it feeds your reasoning only.
 
 ### 2. Enumerate the alternatives
 
@@ -105,7 +105,8 @@ children, in exactly this shape:
   element (the strongest reason to choose it) and a child `<drawback>` element (the main cost
   or risk it carries). The `id` is the option's Short-Title-style label — it is what the
   recommendation pass's `<recommendation option="...">` element and the answer path's
-  alternative lift reference, so make it a stable, readable handle.
+  alternative lift reference, so make it a stable, readable handle. An id may not hold a `"`,
+  a `$`, a backtick, or a `\`: the tool that embeds your file refuses an id holding any of them.
 - The `<alternative>` elements are the **whole** return. Render no `<recommendation>`, no
   `<applied-principle>`, and no `<depends-on>` element — those are the recommendation pass's
   to write over the set you return, and a fragment carrying one is refused by the tool that
@@ -139,9 +140,10 @@ mv "<scratch dir>/<Short Title>.xml.part" "<scratch dir>/<Short Title>.xml"
 The file name is the Short Title **exactly as given** plus the fixed extension: never shorten,
 slug, escape, or otherwise alter it, because the orchestrator derives the question from the
 file name alone. Write under the `.xml.part` name first and rename only once the whole draft is
-written, so the orchestrator never reads a half-written return. If the Short Title holds a
-path separator, the write fails: do not create a directory or alter the title to make it
-succeed — that failure is a `FAILED:` like any other.
+written, so the orchestrator never reads a half-written return. Only a block authored before the
+open-question tool's `add` refused such a title can still carry a Short Title holding a path
+separator, and for it the write fails: do not create a directory or alter the title to make it
+succeed — that failure is a `FAILED:` like any other, its reason naming the separator.
 
 Once the rename has succeeded, **end your session with the bare token `DONE` as your final
 message** and nothing else — not the path, not the elements, not a summary. The file is the

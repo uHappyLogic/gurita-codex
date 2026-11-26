@@ -13,7 +13,7 @@ Resolves a named open question of the mission named by `--mission` by recording 
 /answer-open-question --mission <path> <Short Title>. <answer text>
 ```
 
-The `<Short Title>` must match (case-insensitive, against the block's `id`) an existing `<open-question>` block. The `.` character is the separator. Everything after the first `.` is the answer. The required leading `--mission <path>` names the mission by its repo-relative path, exactly as the definition tool printed it, trailing slash included, e.g. `mission_user-guide/`.
+The `<Short Title>` must match (case-insensitive, against the block's `id`) an existing `<open-question>` block. The separator is the first `.` followed by whitespace, so a Short Title may name a dotted file (`CLAUDE.md wording. answer` splits after `wording`). Everything after that separator is the answer. The required leading `--mission <path>` names the mission by its repo-relative path, exactly as the definition tool printed it, trailing slash included, e.g. `mission_user-guide/`.
 
 **Example (literal answer):**
 ```
@@ -29,11 +29,11 @@ The `<Short Title>` must match (case-insensitive, against the block's `id`) an e
 
 ### 1. Parse the input
 
-First strip the leading `--mission <path>` from the skill args by the rule in `${PLUGIN_ROOT}/shared/resolve-mission.md`, holding its value for step 3, then split the rest on the first `.` character:
+First strip the leading `--mission <path>` from the skill args by the rule in `${PLUGIN_ROOT}/shared/resolve-mission.md`, holding its value for step 3, then split the rest on the first `.` followed by whitespace — a `.` with no whitespace after it, as in a dotted file name, is part of the text and never the separator:
 - Before: the question **Short Title** (trim whitespace)
 - After: the **answer text** (trim whitespace)
 
-If no `.` is found, stop and report the parse error: the fixed line `Answer not recorded — the input has no "." separator.` first, then the expected format below it.
+If no `.` followed by whitespace is found, stop and report the parse error: the fixed line `Answer not recorded — the input has no ". " separator.` first, then the expected format below it.
 
 ### 2. Redirect guard for the retired sentinel
 

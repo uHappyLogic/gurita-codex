@@ -64,7 +64,8 @@ The call opens by capturing the acceptance bar, in the form the procedure's step
 from the first quoted heredoc into `bar`: the heredoc feeds the `{ … }` group rather than
 sitting inside the `$( )`, the form every shell parses alike whatever apostrophes or
 parentheses the bar holds, and the delimiter is quoted so nothing inside is expanded (pick a
-delimiter line the bar does not contain). The test that follows refuses a bar holding no
+delimiter line the bar does not contain, and one the paths do not contain for the path heredoc
+below). The test that follows refuses a bar holding no
 non-blank line: it prints `acceptance bar empty` and ends the call before anything is removed
 or written, so write the bar's bullets into the heredoc and run the call again. The removal
 command is exactly the one the procedure's step 5 shows. Only after it succeeds does the call
@@ -89,17 +90,24 @@ commits the paths your path file names, with your body file as the commit's body
 
 Because you run in an isolated context, the orchestrator sees only the message you return,
 and your bar and change set only in the two files.
-**End every session with exactly one of these as the final line, and never exit without it:**
+**End every session with a final message that is exactly one of these lines and nothing
+else, and never exit without it:**
 
 - `DONE` — the procedure completed: every success criterion passed, the task was removed
   from `TASKS_TODO.md`, the bar was written to `<scratch dir>/body.txt`, and the change set
-  to `<scratch dir>/paths.txt`. Return no payload above it — not the files' paths, not your
+  to `<scratch dir>/paths.txt`. Return the bare token alone — not the files' paths, not your
   paths, not the bar, not a summary: the files are the success return, and the orchestrator
   reads them from the scratch directory, never from your message.
 - `FAILED: <reason>` — the procedure could not complete. Use this for the no-matching-task
   case too: `FAILED: no task matching "<name>" found in <MISSION_DIR>/TASKS_TODO.md`.
 
-`DONE` or `FAILED` must be the very last line you output. A `FAILED` return writes neither
-file and stages and commits nothing, leaving whatever partial work it managed in the working
-tree — never revert or clean it up — so a later run of this agent resumes from it instead of
-starting over.
+Do any thinking or summing up you still need in an earlier turn, never in the final message.
+A `FAILED` return writes neither file and stages and commits nothing, leaving whatever partial
+work it managed in the working tree — never revert or clean it up — so a later run of this
+agent resumes from it instead of starting over.
+
+Run every command the procedure needs in the foreground and wait for it to finish within the
+same call: never start a process in the background or leave one running to check on later,
+and never end a turn while a process you started is still running, because a turn ended to
+wait ends your session with neither line. End the session only on the `DONE` or `FAILED:`
+line.

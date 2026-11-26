@@ -28,10 +28,10 @@ In parallel, as two independent tool calls:
 - Run the plugin's missions tool, to list what was concretely built:
 
   ```
-  python3 ${PLUGIN_ROOT}/tools/missions.py tasks <MISSION_DIR> --with-body
+  python3 ${PLUGIN_ROOT}/tools/missions.py tasks <MISSION_DIR> --with-body --bodies 10
   ```
 
-  It prints, newest first, one tab-separated line per task completed in the mission (the commit's abbreviated hash, its date, the mission directory, and the task title), with the task's verified bar indented beneath it, and prints nothing when no task has been completed, which is no failure.
+  It prints, newest first, one tab-separated line per task completed in the mission (the commit's abbreviated hash, its date, the mission directory, and the task title), with the verified bar of each of the 10 newest tasks indented beneath it, every older task its line alone, and prints nothing when no task has been completed, which is no failure.
 
 If the call fails, stop and report it, writing and committing nothing: the fixed line `Cannot finish the mission: the completed-task read failed.` first, then its one `Error: <reason>` line from stderr verbatim below it.
 
@@ -61,7 +61,7 @@ Then check that `<MISSION_DIR>/TASKS_TODO.md` contains no `##` sections. If task
 
 Write a short summary (3–8 bullet points) of what was accomplished. Draw from:
 - The Goal section of `requirements.md`
-- The completed tasks step 2's `tasks` call listed, each with its verified bar
+- The completed tasks step 2's `tasks` call listed, each by its title and, for the 10 newest, its verified bar
 - Any significant decisions recorded in `requirements.md`
 
 Keep each bullet to one sentence, factual and grounded in the requirements and completed tasks — never an invented accomplishment. Focus on what now exists in the project, not on process.

@@ -28,18 +28,32 @@ optional, every one already resolved:
 
 ## Procedure
 
-Run this one command as the step's one git tool call, with SUBJECT and BODY as given,
-every path of REMOVALS written out in full after its own `--remove`, and every path of PATHS
-written out on the command line after `--` as its own argument, none held in a shell
-variable:
+Run this one shell call as the step's one git tool call, written out in full exactly as
+shown, with SUBJECT as given, BODY's lines exactly as given between the `<<'EOF'` line and
+the `EOF` line, every path of REMOVALS written out in full after its own `--remove`, and
+every path of PATHS written out on the command line after `--` as its own argument, none
+held in a shell variable:
 
 ```
-python3 ${PLUGIN_ROOT}/tools/commit.py --subject "<SUBJECT>" --body "<BODY>" --remove <REMOVAL> -- <PATHS>
+{ body="$(cat)"; } <<'EOF' &&
+<BODY>
+EOF
+python3 ${PLUGIN_ROOT}/tools/commit.py --subject "<SUBJECT>" --body "$body" --remove <REMOVAL> -- <PATHS>
 ```
 
-When the caller supplies no BODY, leave out `--body "<BODY>"`, and the commit is
-subject-only. Write one `--remove <REMOVAL>` for each path of REMOVALS, and none when the
-caller supplies no REMOVALS; when PATHS is empty, leave out `-- <PATHS>`. The tool runs the
+The call opens by capturing BODY from the quoted heredoc into `body`: the heredoc feeds the
+`{ … }` group rather than sitting inside the `$( )`, the form every shell parses alike
+whatever apostrophes or parentheses the body holds, and the delimiter is quoted so nothing
+inside is expanded (pick a delimiter line the body does not contain). BODY is therefore
+written with nothing escaped, its backticks, `$`, double quotes, apostrophes, and
+backslashes included, and reaches the tool as `--body "$body"`. `body` is one quoted value
+set and used within this one call, never a tool command or a path list.
+
+When the caller supplies no BODY, leave out both the capture, from its
+`{ body="$(cat)"; } <<'EOF' &&` line through its `EOF` line, and `--body "$body"`, so the
+call is the commit-tool command alone and the commit is subject-only. Write one
+`--remove <REMOVAL>` for each path of REMOVALS, and none when the caller supplies no
+REMOVALS; when PATHS is empty, leave out `-- <PATHS>`. The tool runs the
 dirty-own-path guard over PATHS and REMOVALS, removes each path of REMOVALS from the index
 and the working tree with `git rm -r` (which refuses a file holding an uncommitted change, so
 no uncommitted work is discarded), stages exactly PATHS, and commits them with PATHS and

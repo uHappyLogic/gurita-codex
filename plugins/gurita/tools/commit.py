@@ -4,6 +4,7 @@ with an optional removal of named paths made inside the same commit.
 
 Usage: python3 <plugin root>/tools/commit.py --subject SUBJECT [--body BODY] [--remove PATH ...] [--] PATH [PATH ...]
        python3 <plugin root>/tools/commit.py --subject SUBJECT [--body BODY] [--remove PATH ...] --path-file FILE
+       python3 <plugin root>/tools/commit.py --subject SUBJECT [--body BODY] [--remove PATH ...] --path-file - < PATHS
        python3 <plugin root>/tools/commit.py --subject SUBJECT [--body BODY] --remove PATH [--remove PATH ...]
 
 Unlike the document writers beside it, which touch no git, this module exists to run git: it
@@ -27,23 +28,32 @@ Steps, each run only when the one before it succeeded:
      removal a failed earlier run of the same call left behind) is not removed again; its
      staged removal is recorded by the commit as it stands. Git refuses to remove a tracked
      file holding a change of its own, so a removal never discards uncommitted work
-  3. the path-scoped stage, "git add -- PATH...", staging exactly the named paths, run only
-     when a PATH is given
-  4. the commit, "git commit -m SUBJECT [-m BODY] -- PATH... REMOVED...", with the named paths
-     and the paths to remove together as its pathspec, so the one commit records the
-     removals and those paths and nothing else whatever else the index holds, and every
-     other staged change stays staged and uncommitted
+  3. the path-scoped stage: for each named PATH, "git ls-files --cached --others -- PATH", a
+     read run with git's optional locks off and never repeated, which tells whether the index
+     or the working tree still holds a file under it, then "git add -- HELD...", staging
+     exactly the named paths that are still held, skipped when none is. A named path neither
+     holds, one "git rm" or "git mv" already took out of the index, is not staged: its staged
+     removal is recorded by the commit as it stands. A path git knows nowhere, a mistyped
+     one, is not staged either, and the commit's pathspec refuses it
+  4. the commit, "git commit -m SUBJECT [-m BODY] -- PATH... REMOVED...", with every named
+     path, held or not, and the paths to remove together as its pathspec, so the one commit
+     records the removals and those paths and nothing else whatever else the index holds,
+     and every other staged change stays staged and uncommitted; git matches the pathspec
+     against HEAD as well as the index, so a path recorded only as a staged removal is
+     matched, while a path matching nothing in either is refused with git's exit 1
 
 The paths are given either as arguments (behind "--" when one may begin with "-") or, with
 --path-file, in a file holding one path per line, never both. A path file is read
 line-exact: it is split at its newlines only, each line taken whole as one path with no word
 splitting, quoting, or trimming of its own, a line holding nothing is skipped (it names no
-path), and its last line needs no newline. The paths to remove are given as --remove, one
+path), and its last line needs no newline. A FILE of "-" is standard input, read whole and
+line-exact by the same rule, so a caller can feed the list from a quoted heredoc and no path
+reaches its command line, a path holding a space or shell syntax included. The paths to remove are given as --remove, one
 path per option, repeated for each, beside either form or alone. However they are given, the
 paths reach every git command as separate arguments, read literally rather than as
 patterns, so a path holding a glob character names that one file only. No path is checked
 beyond that: git reports a path it cannot use. A call without --remove runs exactly steps 1,
-3, and 4 over its named paths, the guard's status alone and no ls-files.
+3, and 4 over its named paths, the guard's status alone with no ls-files of a removal.
 
 SUBJECT is the commit's one-line subject, passed to git as given. BODY, when given and holding
 anything but whitespace, is the commit's body, passed to git as given, line breaks included;
@@ -58,7 +68,8 @@ file) is passed on at once. Only the exit status is tested; no message text is r
 
 Refusals, made before any git command runs: an empty or multi-line SUBJECT, an empty path
 argument, an empty --remove value, no path and no --remove given at all, and a path file
-that is missing, unreadable, not UTF-8 text, or naming no path. Nothing else is checked.
+(standard input for "-") that is missing, unreadable, not UTF-8 text, or naming no path.
+Nothing else is checked.
 
 Output and error contract:
   - a commit that lands prints nothing; a call whose guard found none of the paths changed
@@ -124,20 +135,29 @@ def commit_body(body):
     return body
 
 
+STDIN_PATH_FILE = "-"
+
+
 def read_path_file(path):
-    """The paths a path file names: one per line, each line taken whole, empty lines skipped."""
-    try:
-        with open(path, "rb") as handle:
-            data = handle.read()
-    except FileNotFoundError:
-        raise ToolError(f"the path file {path} does not exist")
+    """The paths a path file names, standard input for "-": one per line, each line taken
+    whole, empty lines skipped."""
+    if path == STDIN_PATH_FILE:
+        source = "the path list on standard input"
+        data = sys.stdin.buffer.read()
+    else:
+        source = f"the path file {path}"
+        try:
+            with open(path, "rb") as handle:
+                data = handle.read()
+        except FileNotFoundError:
+            raise ToolError(f"{source} does not exist")
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
-        raise ToolError(f"the path file {path} is not UTF-8 text")
+        raise ToolError(f"{source} is not UTF-8 text")
     paths = [line for line in text.split("\n") if line]
     if not paths:
-        raise ToolError(f"the path file {path} names no path")
+        raise ToolError(f"{source} names no path")
     return paths
 
 
@@ -230,8 +250,16 @@ def commit(args):
         if result.returncode != 0:
             raise failure("rm", result, attempts)
 
-    if paths:
-        result, attempts = write(["add", "--", *paths])
+    held = []
+    for path in paths:
+        listing = git(["ls-files", "--cached", "--others", "--", path], guard_environment)
+        if listing.returncode != 0:
+            raise failure("ls-files", listing)
+        if listing.stdout.strip():
+            held.append(path)
+
+    if held:
+        result, attempts = write(["add", "--", *held])
         if result.returncode != 0:
             raise failure("add", result, attempts)
 
@@ -251,10 +279,10 @@ def build_parser():
         description=(
             "Commit exactly the named paths, with those paths as the commit's pathspec: a "
             "status guard over them, git rm -r -q of each path given as --remove, a "
-            "path-scoped git add of the other paths, and one git commit over the removals and "
-            "those paths together, each git write repeated on a fixed schedule while git exits "
-            "128. Prints nothing when the commit lands and one fixed line when none of the paths "
-            "changed."
+            "path-scoped git add of the other paths the index or the working tree still "
+            "holds, and one git commit over the removals and every named path together, each "
+            "git write repeated on a fixed schedule while git exits 128. Prints nothing when "
+            "the commit lands and one fixed line when none of the paths changed."
         ),
     )
     parser.add_argument(
@@ -271,7 +299,10 @@ def build_parser():
     parser.add_argument(
         "--path-file",
         metavar="FILE",
-        help="a file naming the paths to commit, one per line, each line taken whole; instead of PATH arguments",
+        help=(
+            "a file naming the paths to commit, one per line, each line taken whole, '-' for "
+            "standard input read by the same rule; instead of PATH arguments"
+        ),
     )
     parser.add_argument(
         "--remove",

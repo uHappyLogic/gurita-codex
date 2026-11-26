@@ -11,20 +11,30 @@ Facilitates a deliberation on a named `<open-question>` block in the named missi
 
 ```
 /discuss-open-question --mission <path> <Short Title>
+/discuss-open-question --mission <path> <Short Title>. <note>
 ```
 
-The `<Short Title>` must match (case-insensitive) the `id` of an existing `<open-question>` block in `<MISSION_DIR>/open_questions.xml`. The required leading `--mission <path>` names the mission by its repo-relative path, exactly as the definition tool printed it, trailing slash included, e.g. `mission_user-guide/`.
+The `<Short Title>` must match (case-insensitive) the `id` of an existing `<open-question>` block in `<MISSION_DIR>/open_questions.xml`. The separator is the first `.` followed by whitespace, the one the hand-answer skills split on, so a Short Title may name a dotted file (`CLAUDE.md wording. note` splits after `wording`). Everything after that separator is an optional note, the user's opening remark on the question; text holding no separator is the Short Title alone. The required leading `--mission <path>` names the mission by its repo-relative path, exactly as the definition tool printed it, trailing slash included, e.g. `mission_user-guide/`.
 
 **Example:**
 ```
 /discuss-open-question --mission mission_user-guide/ Getting-started section order
 ```
 
+**Example (with a note):**
+```
+/discuss-open-question --mission mission_user-guide/ Getting-started section order. New readers keep skipping the overview, so I lean towards the walkthrough first.
+```
+
 ## Workflow
 
 ### 0. Find the mission
 
-First strip the leading `--mission <path>` from the invocation text by the rule in `${PLUGIN_ROOT}/shared/resolve-mission.md`, reading only the rest as the `<Short Title>`. Follow `${PLUGIN_ROOT}/shared/resolve-mission.md` to resolve `<MISSION_DIR>`. Never use a hardcoded task-list path.
+First strip the leading `--mission <path>` from the invocation text by the rule in `${PLUGIN_ROOT}/shared/resolve-mission.md`, then split the rest on the first `.` followed by whitespace — a `.` with no whitespace after it, as in a dotted file name, is part of the text and never the separator:
+- Before: the question **`<Short Title>`** (trim whitespace), the handle step 1 passes to `locate`
+- After: the optional **note** (trim whitespace), the user's opening remark on the question, which step 3 takes up
+
+Text holding no `.` followed by whitespace is the `<Short Title>` alone, with no note, and a note that is empty once trimmed is no note. Then follow `${PLUGIN_ROOT}/shared/resolve-mission.md` to resolve `<MISSION_DIR>`. Never use a hardcoded task-list path.
 
 ### 1. Locate the question
 
@@ -44,7 +54,7 @@ Before forming a view, read any project artifacts — deliverables, documents, o
 
 ### 3. Present the discussion
 
-Open with a concise framing of what is actually at stake — one or two sentences: no preamble, no summary or restatement of the question, no meta-commentary about what you are about to do.
+Open with a concise framing of what is actually at stake — one or two sentences: no preamble, no summary or restatement of the question, no meta-commentary about what you are about to do. When step 0 parsed a note, it is the user's opening remark on the question: let the framing and the deliberation below answer it — the concern it raises, the option it leans towards, the constraint it names — as you would a first reply in the conversation, never as a pick to adopt or a new question to answer instead.
 
 The analytical core is two shared procedures followed **inline in this conversation**, in this order, their output the spine of the deliberation. Both have a grounding step that overlaps the context you already gathered in step 2 — reuse that reading rather than repeating it.
 

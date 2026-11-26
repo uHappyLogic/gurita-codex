@@ -42,10 +42,10 @@ In parallel, as independent tool calls, so the answer rests on the real state ra
 - Run the plugin's missions tool — completed tasks:
 
   ```
-  python3 ${PLUGIN_ROOT}/tools/missions.py tasks <MISSION_DIR> --with-body
+  python3 ${PLUGIN_ROOT}/tools/missions.py tasks <MISSION_DIR> --with-body --bodies 10
   ```
 
-  It prints, newest first, one tab-separated line per task completed in the mission (the commit's abbreviated hash, its date, the mission directory, and the task title), with the task's verified bar indented beneath it, and prints nothing when no task has been completed, which is no failure. Each task's title and verified bar tell you *what the task was meant to achieve* — the intent behind the deliverable that now exists — and its brief stands in its commit's diff, as the section removed from `TASKS_TODO.md`, which `git show <hash>` pulls up.
+  It prints, newest first, one tab-separated line per task completed in the mission (the commit's abbreviated hash, its date, the mission directory, and the task title), with the verified bar of each of the 10 newest tasks indented beneath it, every older task its line alone, and prints nothing when no task has been completed, which is no failure. Each task's title and verified bar tell you *what the task was meant to achieve* — the intent behind the deliverable that now exists — and its brief stands in its commit's diff, as the section removed from `TASKS_TODO.md`, which `git show <hash>` pulls up.
 - Read `<MISSION_DIR>/TASKS_TODO.md` — pending tasks, in priority order. Their ordering explains dependencies ("what's blocking what").
 - Read `AGENTS.md` — the project's domain context, conventions, and real names for its systems and files, so your answer uses the project's vocabulary.
 - When the question concerns past work — what an earlier mission built, when or why something landed, a finished mission — run the plugin's missions tool for the project's composed record, at your own discretion and scoped to the question: the path the question concerns (a file or directory), the mission's scope (the directory its mission directory stands in, `.` for one at `mission_<slug>/`) for the work around this mission, or `.` for a project-wide question:

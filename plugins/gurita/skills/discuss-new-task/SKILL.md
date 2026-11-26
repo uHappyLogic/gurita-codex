@@ -53,10 +53,10 @@ In parallel, as independent tool calls, to ground the discussion in the real pro
 - Run the plugin's missions tool — completed work, to catch issues already addressed:
 
   ```
-  python3 ${PLUGIN_ROOT}/tools/missions.py tasks <MISSION_DIR> --with-body
+  python3 ${PLUGIN_ROOT}/tools/missions.py tasks <MISSION_DIR> --with-body --bodies 10
   ```
 
-  It prints, newest first, one tab-separated line per task completed in the mission (the commit's abbreviated hash, its date, the mission directory, and the task title), with the task's verified bar indented beneath it, and prints nothing when no task has been completed, which is no failure.
+  It prints, newest first, one tab-separated line per task completed in the mission (the commit's abbreviated hash, its date, the mission directory, and the task title), with the verified bar of each of the 10 newest tasks indented beneath it, every older task its line alone, and prints nothing when no task has been completed, which is no failure.
 - Read `AGENTS.md` — the project's conventions and context, so the discussion uses the project's real terms.
 
 If the `tasks` call fails, tell the user in prose that the completed-task read failed, quoting its one `Error: <reason>` line from stderr verbatim, and carry on from the other reads, printing no fixed line.

@@ -160,10 +160,36 @@ requirements the task did not ask for.
 `AGENTS.md`. At minimum, apply the project's way of verifying the change and fix any
 problems before continuing.
 
-**Record the paths you touch.** As you create or edit each file while carrying out the
-task, keep an explicit running list of those paths — recorded as each edit is made, never
-reconstructed afterwards by diffing the working tree. This recorded set is the task's real
-change set.
+**Record the paths you touch.** As you create, edit, delete, rename, or move each file while
+carrying out the task, keep an explicit running list of those paths — a deleted file's path,
+and both the old and the new path of a renamed or moved file — recorded as each change is
+made, never reconstructed afterwards by diffing the working tree. This recorded set is the
+task's real change set.
+
+**Revise a later queued task after a finding.** When carrying out the task surfaces a finding
+that changes what a later task still queued in `TASKS_TODO.md` should say — a name, path, or
+premise its brief states that the live deliverable now contradicts, or work its brief asks for
+that this task has already done — rewrite that task's brief through the plugin's task-list
+tool, the sole writer of that file, never by hand, as this one call, written out in full
+exactly as shown, with only `<MISSION_DIR>`, `<Queued Task Title>`, and the brief replaced:
+
+```
+python3 ${PLUGIN_ROOT}/tools/task_list.py replace <MISSION_DIR> "<Queued Task Title>" <<'EOF'
+<the queued task's revised brief>
+EOF
+```
+
+`<Queued Task Title>` is that task's full `##` heading as `TASKS_TODO.md` holds it: the title
+cannot change, and the tool keeps the section's heading, its position, and its `---`, rewriting
+only its body. The revised brief follows `${PLUGIN_ROOT}/shared/task-format.md` and changes
+only what the finding changes; the delimiter is quoted so nothing inside is expanded (pick a
+delimiter line the brief does not contain). Never revise the running task's own section, which
+step 5 removes. The revision is no part of this task's acceptance bar and adds no path to the
+running list: the task list is already in the change set your runner's own file records beside
+the step-5 removal, so the revision rides in this task's record. The tool prints nothing on
+success, and on any failure one `Error: <reason>` line on stderr with a non-zero exit and
+`TASKS_TODO.md` left byte-for-byte unchanged: correct the call against that line and run it
+again.
 
 **Tool patterns:**
 - Read or edit a file: `Read` then `Edit`.

@@ -59,7 +59,7 @@ and whose lines below it state, in order:
 
 ### 1. Read the scope
 
-The flag is present only when the first whitespace-separated token of the invocation text is exactly `--at`. Its value, `<scope>`, is the token right after it; strip those two tokens and the whitespace following them, and what remains is `<overall_goal_description>`. Take `<scope>` verbatim: normalizing it, and refusing a scope that is absolute, climbs out of the workspace root, or is not an existing directory, is the tool's. When the first token is anything else, or `--at` has no token after it, **stop without changing anything** and report the fixed line `Mission not defined — no --at scope was given.` first, with the usage line `/define-mission-goal --at <scope> <overall_goal_description>` below it.
+The flag is present only when the first whitespace-separated token of the invocation text is exactly `--at`. Its value, `<scope>`, is the token right after it; strip those two tokens and the whitespace following them, and what remains is `<overall_goal_description>`. Take `<scope>` verbatim: normalizing it, and refusing a scope that is absolute, climbs out of the workspace root, holds whitespace or a shell-syntax character, or is not an existing directory, is the tool's. When the first token is anything else, or `--at` has no token after it, **stop without changing anything** and report the fixed line `Mission not defined — no --at scope was given.` first, with the usage line `/define-mission-goal --at <scope> <overall_goal_description>` below it.
 
 ### 2. Choose the title
 

@@ -26,9 +26,11 @@ recommendation-bearing question at its *recommended* option unattended, use
 
 First strip the leading `--mission <path>` from the argument by the rule in
 `${PLUGIN_ROOT}/shared/resolve-mission.md`, holding its value for step 1, then split
-the rest on the **first `.`** — exactly as `answer-open-question` does. Everything
-before it is `<Short Title>` (the question handle); everything after it is `<Alternative Id>`
-(the `id` of the `<alternative>` to record). Trim surrounding whitespace from both halves.
+the rest on the **first `.` followed by whitespace** — exactly as `answer-open-question`
+does, so a `.` with no whitespace after it, as in a dotted file name, stays part of the
+text. Everything before it is `<Short Title>` (the question handle); everything after it
+is `<Alternative Id>` (the `id` of the `<alternative>` to record). Trim surrounding
+whitespace from both halves.
 
 - `<Short Title>` must match (case-insensitive, against the block's `id`) an existing
   `<open-question>` block in `<MISSION_DIR>/open_questions.xml` that the

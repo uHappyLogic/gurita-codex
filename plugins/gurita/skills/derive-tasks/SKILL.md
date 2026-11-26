@@ -105,10 +105,10 @@ Apply these rules:
 First run the plugin's missions tool, for the work already recorded as completed in this mission:
 
 ```
-python3 ${PLUGIN_ROOT}/tools/missions.py tasks <MISSION_DIR> --with-body
+python3 ${PLUGIN_ROOT}/tools/missions.py tasks <MISSION_DIR> --with-body --bodies 10
 ```
 
-It prints, newest first, one tab-separated line per task completed in the mission (the commit's abbreviated hash, its date, the mission directory, and the task title), with the task's verified bar indented beneath it, and prints nothing when no task has been completed, which is no failure. If the call fails, stop and report it, writing and committing nothing: the fixed line `Cannot derive tasks: the completed-task read failed.` first, then its one `Error: <reason>` line from stderr verbatim below it, and print no line of step 11.
+It prints, newest first, one tab-separated line per task completed in the mission (the commit's abbreviated hash, its date, the mission directory, and the task title), with the verified bar of each of the 10 newest tasks indented beneath it, every older task its line alone, and prints nothing when no task has been completed, which is no failure. If the call fails, stop and report it, writing and committing nothing: the fixed line `Cannot derive tasks: the completed-task read failed.` first, then its one `Error: <reason>` line from stderr verbatim below it, and print no line of step 11.
 
 Then re-read `requirements.md` bullet by bullet and build a traceability matrix mapping **every** requirement, constraint, and behavioral detail to at least one brief:
 
@@ -143,7 +143,7 @@ Directly ahead of the write, follow `${PLUGIN_ROOT}/shared/check-scope-gate.md` 
 
 Write every brief as one task section, using the template and the authoring guidelines from `${PLUGIN_ROOT}/shared/task-format.md` exactly: its `##` title heading, its description, and its trailing `---`. The brief you decomposed in step 5 *is* the task body; writing it down is a transcription into that format, not a second authoring pass that adds detail.
 
-Then run this one fixed shell call, written out in full exactly as shown, with only `<MISSION_DIR>` (in the subject too, the mission path exactly as resolved, trailing slash included) and the sections replaced — every brief's section in the heredoc, **in dependency order**, so the finished file reads top-to-bottom in that order:
+Then run this one fixed shell call, written out in full exactly as shown, with only `<MISSION_DIR>` (in the subject too, the mission path exactly as resolved, trailing slash included) and the sections replaced — every brief's section in the heredoc, **in dependency order**, so the finished file reads top-to-bottom in that order (the delimiter is quoted so nothing inside is expanded; pick a delimiter line the sections do not contain):
 
 ```
 python3 ${PLUGIN_ROOT}/tools/task_list.py initialize <MISSION_DIR> <<'EOF' &&

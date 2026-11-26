@@ -28,9 +28,11 @@ Subcommands:
       none carries HEADING the call is refused. The --section flag is required on every call
 
 The body either subcommand reads is opaque Markdown: it is written verbatim with only its
-leading and trailing blank lines trimmed, adding no bullet, bold lead, or wrapping of its own;
-a heading line in it is written as given, nothing of its prose is checked, and a decision the
-section already holds is folded again.
+leading and trailing blank lines trimmed, adding no bullet, bold lead, or wrapping of its own.
+The one thing checked in it is that no line opens at column 0 with "## " or "### ", the two
+prefixes this file model reads as structure, so a body can never add a section or a subsection
+heading; every other line, an indented or "#### " heading included, is written as given,
+nothing of its prose is checked, and a decision the section already holds is folded again.
 
 The free-text body travels on standard input, never as an argument: the tool reads
 sys.stdin.buffer to end of file exactly once per call and decodes it as UTF-8 itself, and it
@@ -68,7 +70,8 @@ not write is normalized, so the file's diff is exactly the folded decision or th
 body.
 
 Refusals, each leaving requirements.md byte-for-byte unchanged: an empty HEADING, an empty
-body, a requirements.md that is missing or not UTF-8 text, and a file holding no column-0
+body, a body holding a line that opens at column 0 with "## " or "### " (the first such line
+named), a requirements.md that is missing or not UTF-8 text, and a file holding no column-0
 "## Decisions" heading or more than one; replace also refuses a HEADING no subsection of
 "## Decisions" carries, naming the heading. Nothing else is checked.
 
@@ -156,6 +159,19 @@ def decision_lines(text):
     while end > start and is_blank(lines[end - 1]):
         end -= 1
     return lines[start:end]
+
+
+def refuse_heading_lines(body, what):
+    """A ToolError naming the first line of body that opens at column 0 with "## " or "### ",
+    the prefixes this file model reads as a section or a subsection heading; a body holding
+    none passes."""
+    for line in body:
+        if line.startswith(SECTION_PREFIX) or line.startswith(SUBSECTION_PREFIX):
+            raise ToolError(
+                f"{what} on standard input holds the heading line \"{line.rstrip()}\"; a body "
+                f"line opening at column 0 with \"{SECTION_PREFIX}\" or \"{SUBSECTION_PREFIX}\" "
+                f"would be read as structure of requirements.md, so none is written"
+            )
 
 
 # --- the file -------------------------------------------------------------------------
@@ -349,6 +365,7 @@ def cmd_fold(args):
     decision = decision_lines(read_body("the decision"))
     if not decision:
         raise ToolError("the decision on standard input is empty")
+    refuse_heading_lines(decision, "the decision")
     write_bytes(path, splice(lines, decisions, heading, decision).encode("utf-8"))
     return 0
 
@@ -363,6 +380,7 @@ def cmd_replace(args):
     body = decision_lines(read_body("the new subsection body"))
     if not body:
         raise ToolError("the new subsection body on standard input is empty")
+    refuse_heading_lines(body, "the new subsection body")
     write_bytes(path, rewrite(lines, decisions, heading, body, path).encode("utf-8"))
     return 0
 
@@ -383,7 +401,8 @@ def build_parser():
     fold_help = (
         "splice the decision read from standard input, verbatim, at the end of the ## Decisions "
         "subsection with the given heading, creating that subsection at the end of the section "
-        "when none carries it; every other byte of requirements.md is left unchanged"
+        "when none carries it; every other byte of requirements.md is left unchanged, and a "
+        "decision holding a line that opens at column 0 with ## or ### is refused"
     )
     fold_parser = subcommands.add_parser("fold", help=fold_help, description=fold_help)
     fold_parser.add_argument(
@@ -402,7 +421,8 @@ def build_parser():
     replace_help = (
         "replace the body of the ## Decisions subsection with the given heading by the text read "
         "from standard input, verbatim, keeping the heading line and every byte outside the "
-        "subsection's body; a heading no subsection carries is refused, never created"
+        "subsection's body; a heading no subsection carries is refused, never created, and so "
+        "is a body holding a line that opens at column 0 with ## or ###"
     )
     replace_parser = subcommands.add_parser("replace", help=replace_help, description=replace_help)
     replace_parser.add_argument(

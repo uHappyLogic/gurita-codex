@@ -11,7 +11,12 @@ working directory, "." (or "./") naming the root. It is required, with no defaul
 normalized lexically, with no filesystem lookup: "." components, duplicate and trailing
 slashes, and a leading "./" are collapsed, and a ".." component cancels the component
 before it. A scope that is empty, absolute, or that climbs above the working directory with
-".." once normalized is refused. The normalized scope must then be an existing directory of
+".." once normalized is refused. So is a normalized scope holding whitespace or any
+character a shell reads as syntax in an unquoted word, since every later command line carries
+the mission path unquoted as one word: any of " ' ` $ \\ ( ) [ ] { } * ? ; & | < > !
+anywhere, or ~, #, or = as its first character; every other character is accepted. The
+check is made here, at definition, alone: a mission already standing under such a scope is
+read by no check of this tool. The normalized scope must then be an existing directory of
 the working tree, tested on the filesystem (the tool touches no git); a scope missing there,
 or naming something that is not a directory, is refused. Every scope refusal names the scope
 as given, and nothing is written. The tool never creates the scope, nor any directory but the
@@ -76,6 +81,8 @@ ROOT_SCOPE = "."
 SLUG_WORDS = 5
 APOSTROPHES = ("'", "‘", "’", "ʼ")
 NOT_SLUG_CHARACTERS = re.compile(r"[^a-z0-9]+")
+SHELL_SYNTAX_CHARACTERS = frozenset("\"'`$\\()[]{}*?;&|<>!")
+SHELL_SYNTAX_OPENINGS = frozenset("~#=")
 
 OPEN_QUESTIONS_NAME = "open_questions.xml"
 OPEN_QUESTIONS_TEMPLATE = "<open-questions/>\n"
@@ -158,6 +165,29 @@ def normalize_scope(value):
     if scope == os.pardir or scope.startswith(os.pardir + "/"):
         raise ToolError(f"the scope {value} given as --at climbs out of the workspace root with ..")
     return scope
+
+
+def describe_character(character):
+    """A refused scope character as the Error line names it."""
+    if character.isspace():
+        return "whitespace"
+    return repr(character)
+
+
+def check_scope_characters(scope, value):
+    """Refuse a normalized scope holding whitespace or a character a shell reads as syntax in
+    an unquoted word (~, #, and = only as its first character), naming the scope as given."""
+    for character in scope:
+        if character.isspace() or character in SHELL_SYNTAX_CHARACTERS:
+            raise ToolError(
+                f"the scope {value} given as --at holds {describe_character(character)}, which a shell reads "
+                "as syntax in an unquoted mission path; nothing was written"
+            )
+    if scope[:1] in SHELL_SYNTAX_OPENINGS:
+        raise ToolError(
+            f"the scope {value} given as --at opens with {describe_character(scope[0])}, which a shell reads "
+            "as syntax in an unquoted mission path; nothing was written"
+        )
 
 
 def check_scope(scope, value):
@@ -297,6 +327,7 @@ def define(args):
     title = read_title(args.title)
     slug = derive_slug(title)
     scope = normalize_scope(args.at)
+    check_scope_characters(scope, args.at)
     goal = read_goal()
     check_scope(scope, args.at)
     directory = mission_path(scope, slug)
@@ -320,7 +351,8 @@ def build_parser():
         metavar="SCOPE",
         help=(
             "the existing directory holding the core of the mission's work, relative to the workspace root, "
-            "\".\" for the root; normalized lexically, and refused when absolute or climbing out with \"..\""
+            "\".\" for the root; normalized lexically, and refused when absolute, climbing out with \"..\", "
+            "or holding whitespace or a shell-syntax character"
         ),
     )
     parser.add_argument(
